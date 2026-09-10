@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电商对账小工具 · 在线版（数据不出浏览器）</title>
+<style>
+  :root { --navy:#1F4E79; --gold:#F2A900; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:#F7F9FC; color:#303030; line-height:1.7; }
+  .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 60px; }
+  header { background:var(--navy); color:#fff; border-radius:14px; padding:26px 28px; margin-bottom:20px; }
+  header h1 { font-size:22px; }
+  header p { font-size:13px; opacity:.9; margin-top:4px; }
+  h2 { color:var(--navy); font-size:17px; margin:24px 0 10px; padding-left:10px; border-left:4px solid var(--gold); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .grid{grid-template-columns:1fr;} }
+  .card { background:#fff; border:1px solid #E3E9F0; border-radius:12px; padding:16px; }
+  .card h3 { font-size:14px; color:var(--navy); margin-bottom:8px; }
+  .card pre { font-size:11px; color:#888; background:#F6F8FA; padding:8px; border-radius:8px; overflow-x:auto; }
+  textarea { width:100%; height:170px; border:1px solid #D0D8E0; border-radius:8px; padding:10px; font-size:12px; font-family:Menlo,Consolas,monospace; resize:vertical; }
+  textarea:focus { outline:2px solid var(--gold); }
+  button { background:var(--navy); color:#fff; border:none; border-radius:10px; padding:12px 34px; font-size:16px; cursor:pointer; margin:16px 0; }
+  button:hover { opacity:.92; }
+  button.ghost { background:#fff; color:var(--navy); border:2px solid var(--navy); padding:10px 22px; font-size:14px; margin-left:10px; }
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin:12px 0; }
+  .stat { background:#fff; border:1px solid #E3E9F0; border-radius:10px; padding:10px 18px; text-align:center; min-width:96px; }
+  .stat b { font-size:22px; display:block; }
+  .stat span { font-size:12px; color:#777; }
+  table { width:100%; border-collapse:collapse; background:#fff; font-size:13px; margin-top:10px; }
+  th { background:var(--navy); color:#fff; padding:8px; position:sticky; top:0; }
+  td { border:1px solid #E6ECF2; padding:7px 8px; white-space:nowrap; }
+  tr.ok td { background:#F0FAF0; }
+  tr.warn td { background:#FFF6DE; }
+  tr.bad td { background:#FDE7EA; }
+  tr.orphan td { background:#EDE7F6; }
+  .tag { font-weight:bold; padding:2px 8px; border-radius:4px; }
+  .t-ok { color:#006100; background:#C6EFCE; } .t-warn { color:#9C6500; background:#FFE699; } .t-bad { color:#9C0006; background:#FFC7CE; } .t-orphan { color:#4527A0; background:#D1C4E9; }
+  .tblwrap { max-height:460px; overflow:auto; border-radius:10px; }
+  .tip { background:#FFF7E6; border:1px solid var(--gold); border-radius:10px; padding:10px 14px; font-size:13px; margin:12px 0; }
+  .pro { background:#fff; border:2px solid var(--navy); border-radius:12px; padding:18px 22px; margin-top:30px; }
+  .pro h2 { border:none; padding:0; margin:0 0 8px; }
+  footer { margin-top:30px; text-align:center; color:#999; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>电商对账小工具 · 在线版</h1>
+  <p>订单 × 资金账单，粘贴即对账，差一分钱都标红 | 数据不出浏览器（纯本地计算，不上传任何内容）</p>
+</header>
+
+<div class="tip">💡 用法：在 Excel/WPS 里选中订单数据区域 → 复制 → 粘贴到下面文本框（支持带表头，自动跳过）。两边都粘好后点「开始对账」。</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>① 订单数据（5列：平台 / 订单号 / 买家实付 / 运费 / 退款）</h3>
+    <pre>抖店	DZ20260900001	122.80	6	0
+淘宝	TB20260900062	318.40	0	0</pre>
+    <textarea id="orders" placeholder="粘贴订单数据…"></textarea>
+  </div>
+  <div class="card">
+    <h3>② 资金账单（7列：平台 / 订单号 / 订单金额 / 佣金 / 推广费 / 退款扣回 / 实际到账）</h3>
+    <pre>抖店	DZ20260900001	128.80	6.14	3.68	0	118.98
+淘宝	TB20260900062	318.40	12.74	7.96	0	297.70</pre>
+    <textarea id="funds" placeholder="粘贴结算账单…"></textarea>
+  </div>
+</div>
+
+<button onclick="recon()">开始对账</button>
+<button class="ghost" onclick="loadDemo()">填入演示数据</button>
+<button class="ghost" onclick="clearAll()">清空</button>
+
+<div id="summary" class="stats" style="display:none"></div>
+<div id="result" class="tblwrap" style="display:none">
+  <table>
+    <thead><tr><th>平台</th><th>订单号</th><th>应收(实付+运费)</th><th>资金侧核对额</th><th>结算笔数</th><th>金额差异</th><th>结果</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="tip" id="orphans" style="display:none"></div>
+
+<div class="pro">
+  <h2>📦 需要更完整的对账系统？</h2>
+  <p>本页是<b>免费精简版</b>：适合临时核对几笔、验证数据。</p>
+  <p style="margin-top:6px"><b>Pro 完整版</b>（Excel/WPS 模板）包含：</p>
+  <ul style="padding-left:20px; margin:8px 0; font-size:14px;">
+    <li>600 行自动对账引擎（本页为一次性粘贴核对，无历史留存）</li>
+    <li>真实利润看板：GMV / 退款 / 平台费用 / 成本 / 净利润 / 净利率，图表自动更新</li>
+    <li>差异清单自动汇总 + 换月一键切换</li>
+    <li>180 单演示数据埋 8 处差错可自测，附图文教程</li>
+  </ul>
+  <p style="font-size:14px">👉 闲鱼搜索「电商对账模板 Pro」获取。</p>
+</div>
+
+<footer>电商对账 Lite · 对账原理：应收(实付+运费) = 到账+佣金+推广+扣回 · GitHub: ecom-recon-lite</footer>
+
+</div>
+
+<script>
+function parse(text, ncols) {
+  const rows = [];
+  for (let line of text.split(/\r?\n/)) {
+    line = line.trim();
+    if (!line) continue;
+    let cells = line.includes("\t") ? line.split("\t") : line.split(/\s{2,}|,|，/);
+    cells = cells.map(s => s.trim());
+    if (cells.length < ncols) continue;
+    if (rows.length === 0 && /订单|平台|金额/.test(cells[1] || cells[0])) continue; // 跳表头
+    rows.push(cells);
+  }
+  return rows;
+}
+const num = s => { const v = parseFloat(String(s).replace(/[¥￥,，\s]/g, "")); return isNaN(v) ? 0 : v; };
+const fmt = v => (Math.round(v * 100) / 100).toFixed(2);
+
+function recon() {
+  const orders = parse(document.getElementById("orders").value, 5);
+  const funds  = parse(document.getElementById("funds").value, 7);
+  if (!orders.length || !funds.length) { alert("两边都要粘贴数据（或点「填入演示数据」）"); return; }
+
+  const fmap = new Map();
+  for (const f of funds) {
+    const oid = f[1];
+    if (!fmap.has(oid)) fmap.set(oid, []);
+    fmap.get(oid).push({ amt:num(f[2]), comm:num(f[3]), promo:num(f[4]), deduct:num(f[5]), arrive:num(f[6]) });
+  }
+
+  const oids = new Set(orders.map(o => o[1]));
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  let nOk=0, nWarn=0, nBad=0, diffTotal=0, orphan=0;
+
+  for (const o of orders) {
+    const plat=o[0], oid=o[1], recv=num(o[2])+num(o[3]), refund=num(o[4]);
+    const fl = fmap.get(oid) || [];
+    let side=0, deductSum=0;
+    for (const f of fl) { side += f.arrive + f.comm + f.promo + f.deduct; deductSum += f.deduct; }
+    side = Math.round(side*100)/100;
+    const amtDiff = Math.round((recv - side)*100)/100;
+    const refundDiff = Math.round((refund - deductSum)*100)/100;
+    let st, cls, tag;
+    if (fl.length === 0) { st="⚠未结算"; cls="warn"; tag="t-warn"; nWarn++; }
+    else if (fl.length > 1) { st="❌重复结算"; cls="bad"; tag="t-bad"; nBad++; diffTotal += Math.abs(amtDiff); }
+    else if (Math.abs(refundDiff) > 0.01 && Math.abs(amtDiff) <= 0.01) { st="❌退款未同步"; cls="bad"; tag="t-bad"; nBad++; }
+    else if (Math.abs(amtDiff) > 0.01 || Math.abs(refundDiff) > 0.01) { st="❌金额差异"; cls="bad"; tag="t-bad"; nBad++; diffTotal += Math.abs(amtDiff); }
+    else { st="✓"; cls="ok"; tag="t-ok"; nOk++; }
+    const tr = document.createElement("tr"); tr.className = cls;
+    tr.innerHTML = `<td>${plat}</td><td>${oid}</td><td>${fmt(recv)}</td><td>${fmt(side)}</td><td>${fl.length}</td><td>${amtDiff===0?"0.00":fmt(amtDiff)}</td><td><span class="tag ${tag}">${st}</span></td>`;
+    tbody.appendChild(tr);
+  }
+
+  for (const f of funds) {
+    if (!oids.has(f[1])) {
+      orphan++;
+      const tr = document.createElement("tr"); tr.className = "orphan";
+      tr.innerHTML = `<td>${f[0]}</td><td>${f[1]}</td><td>${f[2]}</td><td>—</td><td>—</td><td>—</td><td><span class="tag t-orphan">🔔疑似多结算/错单</span></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  document.getElementById("result").style.display = "";
+  const s = document.getElementById("summary");
+  s.style.display = "flex";
+  s.innerHTML = `<div class="stat"><b>${orders.length}</b><span>总单数</span></div>
+    <div class="stat"><b style="color:#006100">${nOk}</b><span>✓已对平</span></div>
+    <div class="stat"><b style="color:#9C6500">${nWarn}</b><span>⚠未结算</span></div>
+    <div class="stat"><b style="color:#9C0006">${nBad}</b><span>❌差错</span></div>
+    <div class="stat"><b style="color:#C00000">${fmt(diffTotal)}</b><span>差异总额(元)</span></div>`;
+  const op = document.getElementById("orphans");
+  if (orphan) { op.style.display = ""; op.innerHTML = `🔔 发现 <b>${orphan}</b> 笔账单在订单表里查无此单（疑似多结算/错单），已用紫色标出。`; }
+  else op.style.display = "none";
+}
+
+function loadDemo() {
+  document.getElementById("orders").value =
+`抖店	DZ20260900001	122.80	6	0
+淘宝	TB20260900062	318.40	0	0
+拼多多	PDD20260900135	96.20	0	0
+淘宝	TB20260900088	205.00	8	0
+抖店	DZ20260900044	458.70	0	0
+拼多多	PDD20260900167	77.84	0	77.84`;
+  document.getElementById("funds").value =
+`抖店	DZ20260900001	128.80	6.14	3.68	0	118.98
+淘宝	TB20260900062	318.40	12.74	7.96	0	297.70
+淘宝	TB20260900088	213.00	8.20	5.13	0	199.67
+抖店	DZ20260900044	458.70	22.94	13.76	0	422.00
+拼多多	PDD20260900167	77.84	4.67	3.11	0	70.06`;
+}
+function clearAll() {
+  document.getElementById("orders").value = "";
+  document.getElementById("funds").value = "";
+  document.getElementById("result").style.display = "none";
+  document.getElementById("summary").style.display = "none";
+  document.getElementById("orphans").style.display = "none";
+}
+</script>
+</body>
+</html>
