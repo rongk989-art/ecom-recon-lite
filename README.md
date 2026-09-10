@@ -6,7 +6,7 @@
 
 ## 🌐 用法一：在线小工具（免下载）
 
-打开 **GitHub Pages 在线版**（`docs/index.html`，或本仓库 Pages 链接）：
+打开 **GitHub Pages 在线版**：https://rongk989-art.github.io/ecom-recon-lite/：
 
 - 从 Excel/WPS 复制订单表和结算账单，粘贴进网页
 - 点「开始对账」，逐笔核对，差一分钱都标红
