@@ -15,7 +15,7 @@
 
 ## 📊 用法二：Excel 模板（下载即用）
 
-下载 [`ecom-recon-lite.xlsx`](./ecom-recon-lite.xlsx)（兼容 WPS / Office 2016+，无宏无 VBA）：
+下载 [`ecom-recon-lite.xlsx`](https://rongk989-art.github.io/ecom-recon-lite/ecom-recon-lite.xlsx)（兼容 WPS / Office 2016+，无宏无 VBA）：
 
 - 100 行自动对账引擎，粘贴数据自动出结果，红黄绿高亮
 - 自带 12 单演示数据（埋 2 处差错：1 未结算 + 1 金额差异），打开【自动对账】可自测引擎
